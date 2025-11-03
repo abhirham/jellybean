@@ -50,14 +50,17 @@ fun HomeScreen(
 			// Main content
 			HomeScreenContent(
 				uiState = uiState,
-				onItemClick = onItemClick,
-				onPlayClick = { item ->
-					// Handle play action
-					onItemClick(item)
+				onItemClick = { homeItem ->
+					// Pass the underlying BaseItemDto
+					onItemClick(homeItem.item)
 				},
-				onInfoClick = { item ->
+				onPlayClick = { homeItem ->
+					// Handle play action
+					onItemClick(homeItem.item)
+				},
+				onInfoClick = { homeItem ->
 					// Navigate to detail screen
-					onItemClick(item)
+					onItemClick(homeItem.item)
 				},
 				onRefresh = viewModel::refresh,
 			)
@@ -85,9 +88,9 @@ fun HomeScreen(
 @Composable
 private fun HomeScreenContent(
 	uiState: HomeScreenUiState,
-	onItemClick: (BaseItemDto) -> Unit,
-	onPlayClick: (BaseItemDto) -> Unit,
-	onInfoClick: (BaseItemDto) -> Unit,
+	onItemClick: (HomeItemWithImages) -> Unit,
+	onPlayClick: (HomeItemWithImages) -> Unit,
+	onInfoClick: (HomeItemWithImages) -> Unit,
 	onRefresh: () -> Unit,
 ) {
 	val padding = LocalTvPadding.current
@@ -95,48 +98,57 @@ private fun HomeScreenContent(
 	when {
 		uiState.isLoading && uiState.featuredItem == null -> {
 			// Initial loading state
-			TvFullScreen {
-				LoadingState(
-					message = "Loading your content..."
-				)
-			}
+			LoadingState(
+				message = "Loading your content..."
+			)
 		}
 
 		uiState.error != null -> {
 			// Error state
-			TvFullScreen {
-				ErrorState(
-					message = uiState.error,
-					onRetry = onRefresh
-				)
-			}
+			ErrorState(
+				message = uiState.error,
+				onRetry = onRefresh
+			)
 		}
 
 		else -> {
-			// Content loaded - Use regular Column with scroll for now
-			Column(
-				modifier = Modifier
-					.fillMaxSize()
-					.verticalScroll(rememberScrollState())
-			) {
-				// Hero Banner Section
-				val featuredItem = uiState.featuredItem
-				val resumeItem = uiState.resumeItems.firstOrNull()
+			// Check if we have any content to show
+			val hasContent = uiState.featuredItem != null ||
+				uiState.resumeItems.isNotEmpty() ||
+				uiState.latestItems.isNotEmpty() ||
+				uiState.nextUpItems.isNotEmpty()
+
+			if (!hasContent) {
+				// Show empty state
+				EmptyState(
+					title = "No Content Available",
+					message = "Connect to a Jellyfin server with media to get started"
+				)
+			} else {
+				// Content loaded - Use regular Column with scroll for now
+				Column(
+					modifier = Modifier
+						.fillMaxSize()
+						.verticalScroll(rememberScrollState())
+				) {
+					// Hero Banner Section
+					val featuredItem = uiState.featuredItem
+					val resumeItem = uiState.resumeItems.firstOrNull()
 
 				when {
 					// Show resume banner if user has something in progress
-					resumeItem != null && resumeItem.userData?.playedPercentage != null -> {
+					resumeItem != null && resumeItem.item.userData?.playedPercentage != null -> {
 						HeroBannerWithProgress(
-							title = resumeItem.name.orEmpty(),
-							description = resumeItem.overview.orEmpty(),
-							backdropUrl = resumeItem.getImageUrl(ImageType.BACKDROP),
-							logoUrl = resumeItem.getImageUrl(ImageType.LOGO),
+							title = resumeItem.item.name.orEmpty(),
+							description = resumeItem.item.overview.orEmpty(),
+							backdropUrl = resumeItem.backdropImageUrl,
+							logoUrl = resumeItem.logoImageUrl,
 							metadata = buildMetadataString(
-								resumeItem.productionYear?.toString(),
-								resumeItem.runTimeTicks?.let { formatRuntime(it) },
-								resumeItem.genres?.take(3)
+								resumeItem.item.productionYear?.toString(),
+								resumeItem.item.runTimeTicks?.let { formatRuntime(it) },
+								resumeItem.item.genres?.take(3)
 							),
-							playbackProgress = ((resumeItem.userData?.playedPercentage ?: 0.0) / 100.0).toFloat(),
+							playbackProgress = ((resumeItem.item.userData?.playedPercentage ?: 0.0) / 100.0).toFloat(),
 							playbackText = "Continue Watching",
 							onResumeClick = { onPlayClick(resumeItem) },
 							onRestartClick = { onPlayClick(resumeItem) },
@@ -147,14 +159,14 @@ private fun HomeScreenContent(
 					// Show featured banner otherwise
 					featuredItem != null -> {
 						HeroBanner(
-							title = featuredItem.name.orEmpty(),
-							description = featuredItem.overview.orEmpty(),
-							backdropUrl = featuredItem.getImageUrl(ImageType.BACKDROP),
-							logoUrl = featuredItem.getImageUrl(ImageType.LOGO),
+							title = featuredItem.item.name.orEmpty(),
+							description = featuredItem.item.overview.orEmpty(),
+							backdropUrl = featuredItem.backdropImageUrl,
+							logoUrl = featuredItem.logoImageUrl,
 							metadata = buildMetadataString(
-								featuredItem.productionYear?.toString(),
-								featuredItem.runTimeTicks?.let { formatRuntime(it) },
-								featuredItem.genres?.take(3)
+								featuredItem.item.productionYear?.toString(),
+								featuredItem.item.runTimeTicks?.let { formatRuntime(it) },
+								featuredItem.item.genres?.take(3)
 							),
 							onPlayClick = { onPlayClick(featuredItem) },
 							onInfoClick = { onInfoClick(featuredItem) }
@@ -168,18 +180,18 @@ private fun HomeScreenContent(
 				// Continue Watching Carousel
 				if (uiState.resumeItems.isNotEmpty()) {
 					ContinueWatchingCarousel(
-						items = uiState.resumeItems.map { item ->
+						items = uiState.resumeItems.map { homeItem ->
 							ContinueWatchingItem(
-								id = item.id.toString(),
-								title = item.name.orEmpty(),
-								imageUrl = item.getImageUrl(ImageType.PRIMARY),
-								progress = ((item.userData?.playedPercentage ?: 0.0) / 100.0).toFloat()
+								id = homeItem.item.id.toString(),
+								title = homeItem.item.name.orEmpty(),
+								imageUrl = homeItem.primaryImageUrl,
+								progress = ((homeItem.item.userData?.playedPercentage ?: 0.0) / 100.0).toFloat()
 							)
 						},
 						onItemClick = { continueWatchingItem ->
 							// Find the original item and handle click
-							val item = uiState.resumeItems.find { it.id.toString() == continueWatchingItem.id }
-							item?.let(onItemClick)
+							val homeItem = uiState.resumeItems.find { it.item.id.toString() == continueWatchingItem.id }
+							homeItem?.let(onItemClick)
 						}
 					)
 
@@ -189,18 +201,18 @@ private fun HomeScreenContent(
 				// Next Up Carousel (for TV shows)
 				if (uiState.nextUpItems.isNotEmpty()) {
 					NextUpCarousel(
-						items = uiState.nextUpItems.map { item ->
+						items = uiState.nextUpItems.map { homeItem ->
 							NextUpItem(
-								id = item.id.toString(),
-								title = item.name.orEmpty(),
-								episodeInfo = buildEpisodeInfo(item.parentIndexNumber, item.indexNumber),
-								imageUrl = item.getImageUrl(ImageType.PRIMARY),
-								seriesId = item.seriesId?.toString()
+								id = homeItem.item.id.toString(),
+								title = homeItem.item.name.orEmpty(),
+								episodeInfo = buildEpisodeInfo(homeItem.item.parentIndexNumber, homeItem.item.indexNumber),
+								imageUrl = homeItem.primaryImageUrl,
+								seriesId = homeItem.item.seriesId?.toString()
 							)
 						},
 						onItemClick = { nextUpItem ->
-							val item = uiState.nextUpItems.find { it.id.toString() == nextUpItem.id }
-							item?.let(onItemClick)
+							val homeItem = uiState.nextUpItems.find { it.item.id.toString() == nextUpItem.id }
+							homeItem?.let(onItemClick)
 						}
 					)
 
@@ -211,16 +223,16 @@ private fun HomeScreenContent(
 				if (uiState.latestItems.isNotEmpty()) {
 					LatestMediaCarousel(
 						title = "Latest Movies & Shows",
-						items = uiState.latestItems.map { item ->
+						items = uiState.latestItems.map { homeItem ->
 							MediaItem(
-								id = item.id.toString(),
-								title = item.name.orEmpty(),
-								imageUrl = item.getImageUrl(ImageType.PRIMARY)
+								id = homeItem.item.id.toString(),
+								title = homeItem.item.name.orEmpty(),
+								imageUrl = homeItem.primaryImageUrl
 							)
 						},
 						onItemClick = { mediaItem ->
-							val item = uiState.latestItems.find { it.id.toString() == mediaItem.id }
-							item?.let(onItemClick)
+							val homeItem = uiState.latestItems.find { it.item.id.toString() == mediaItem.id }
+							homeItem?.let(onItemClick)
 						},
 						onSeeAllClick = {
 							// Navigate to full latest media library
@@ -230,8 +242,9 @@ private fun HomeScreenContent(
 					Spacer(modifier = Modifier.height(padding.medium))
 				}
 
-				// Bottom padding for safe area
-				Spacer(modifier = Modifier.height(padding.large))
+					// Bottom padding for safe area
+					Spacer(modifier = Modifier.height(padding.large))
+				}
 			}
 		}
 	}
@@ -250,26 +263,6 @@ private fun getDefaultNavigationItems(): List<NavigationItem> = listOf(
 	NavigationItem(id = "search", label = "Search", icon = "🔍"),
 	NavigationItem(id = "settings", label = "Settings", icon = "⚙️"),
 )
-
-/**
- * Helper extension to get image URL from BaseItemDto
- */
-private fun BaseItemDto.getImageUrl(imageType: ImageType): String? {
-	return when (imageType) {
-		ImageType.PRIMARY -> imageTags?.get(ImageType.PRIMARY)?.let { tag ->
-			// Construct image URL - this is a simplified version
-			// In production, you'd use the actual API client's image URL builder
-			id.toString() // Placeholder
-		}
-		ImageType.BACKDROP -> backdropImageTags?.firstOrNull()?.let {
-			id.toString() // Placeholder
-		}
-		ImageType.LOGO -> imageTags?.get(ImageType.LOGO)?.let {
-			id.toString() // Placeholder
-		}
-		else -> null
-	}
-}
 
 /**
  * Build metadata string from components (e.g., "2024 · 2h 15m · Drama, Thriller")

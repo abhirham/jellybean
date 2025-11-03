@@ -137,7 +137,11 @@ val appModule = module {
 	single<NotificationsRepository> { NotificationsRepositoryImpl(get(), get()) }
 	single<ItemMutationRepository> { ItemMutationRepositoryImpl(get(), get()) }
 	single<CustomMessageRepository> { CustomMessageRepositoryImpl() }
-	single<NavigationRepository> { NavigationRepositoryImpl(Destinations.home) }
+	single<NavigationRepository> {
+		// Use the new Compose-based home screen
+		val homeDestination = org.jellyfin.androidtv.ui.navigation.fragmentDestination<org.jellyfin.androidtv.ui.home.ComposeHomeFragment>()
+		NavigationRepositoryImpl(homeDestination)
+	}
 	single<SearchRepository> { SearchRepositoryImpl(get()) }
 	single<MediaSegmentRepository> { MediaSegmentRepositoryImpl(get(), get()) }
 
@@ -149,7 +153,7 @@ val appModule = module {
 	viewModel { PhotoPlayerViewModel(get()) }
 	viewModel { SearchViewModel(get()) }
 	viewModel { DreamViewModel(get(), get(), get(), get(), get()) }
-	viewModel { HomeViewModel(get(), get()) }
+	viewModel { HomeViewModel(get(), get(), get()) }
 
 	single { BackgroundService(get(), get(), get(), get(), get()) }
 

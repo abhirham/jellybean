@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import org.jellyfin.androidtv.data.repository.UserViewsRepository
+import org.jellyfin.androidtv.util.ImageHelper
 import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.extensions.itemsApi
 import org.jellyfin.sdk.api.client.extensions.tvShowsApi
@@ -19,6 +20,7 @@ import org.jellyfin.sdk.model.api.BaseItemDto
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.ItemFields
 import org.jellyfin.sdk.model.api.ItemFilter
+import org.jellyfin.sdk.model.api.ImageType
 import timber.log.Timber
 
 /**
@@ -28,6 +30,7 @@ import timber.log.Timber
 class HomeViewModel(
 	private val api: ApiClient,
 	private val userViewsRepository: UserViewsRepository,
+	private val imageHelper: ImageHelper,
 ) : ViewModel() {
 
 	private val _uiState = MutableStateFlow(HomeScreenUiState())
@@ -39,19 +42,28 @@ class HomeViewModel(
 
 	private fun loadHomeData() {
 		viewModelScope.launch {
-			_uiState.value = _uiState.value.copy(isLoading = true)
+			_uiState.value = _uiState.value.copy(isLoading = true, error = null)
 
 			try {
 				// Load all data in parallel
-				launch { loadFeaturedContent() }
-				launch { loadResumeItems() }
-				launch { loadLatestMedia() }
-				launch { loadNextUpEpisodes() }
+				val featuredJob = launch { loadFeaturedContent() }
+				val resumeJob = launch { loadResumeItems() }
+				val latestJob = launch { loadLatestMedia() }
+				val nextUpJob = launch { loadNextUpEpisodes() }
+
+				// Wait for all to complete
+				featuredJob.join()
+				resumeJob.join()
+				latestJob.join()
+				nextUpJob.join()
+
+				// All data loaded successfully
+				_uiState.value = _uiState.value.copy(isLoading = false)
 			} catch (e: Exception) {
 				Timber.e(e, "Error loading home data")
 				_uiState.value = _uiState.value.copy(
 					isLoading = false,
-					error = e.message
+					error = e.message ?: "Failed to load content"
 				)
 			}
 		}
@@ -73,10 +85,9 @@ class HomeViewModel(
 				imageTypeLimit = 1,
 			)
 
-			val featuredItem = response.content.firstOrNull()
+			val featuredItem = response.content.firstOrNull()?.toHomeItem()
 			_uiState.value = _uiState.value.copy(
-				featuredItem = featuredItem,
-				isLoading = false
+				featuredItem = featuredItem
 			)
 		} catch (e: Exception) {
 			Timber.e(e, "Error loading featured content")
@@ -99,7 +110,7 @@ class HomeViewModel(
 			)
 
 			_uiState.value = _uiState.value.copy(
-				resumeItems = response.content.items.orEmpty()
+				resumeItems = response.content.items.orEmpty().map { it.toHomeItem() }
 			)
 		} catch (e: Exception) {
 			Timber.e(e, "Error loading resume items")
@@ -123,7 +134,7 @@ class HomeViewModel(
 			)
 
 			_uiState.value = _uiState.value.copy(
-				latestItems = response.content
+				latestItems = response.content.map { it.toHomeItem() }
 			)
 		} catch (e: Exception) {
 			Timber.e(e, "Error loading latest media")
@@ -146,7 +157,7 @@ class HomeViewModel(
 			)
 
 			_uiState.value = _uiState.value.copy(
-				nextUpItems = response.content.items.orEmpty()
+				nextUpItems = response.content.items.orEmpty().map { it.toHomeItem() }
 			)
 		} catch (e: Exception) {
 			Timber.e(e, "Error loading next up episodes")
@@ -161,6 +172,21 @@ class HomeViewModel(
 		// Navigation will be handled by the composable
 		Timber.d("Item clicked: ${item.name}")
 	}
+
+	/**
+	 * Convert BaseItemDto to HomeItemWithImages with pre-generated image URLs
+	 */
+	private fun BaseItemDto.toHomeItem(): HomeItemWithImages {
+		return HomeItemWithImages(
+			item = this,
+			primaryImageUrl = imageHelper.getPrimaryImageUrl(this, preferParentThumb = true),
+			backdropImageUrl = imageHelper.getPrimaryImageUrl(this)?.let {
+				// For backdrop, we prefer backdrop images
+				imageHelper.getBannerImageUrl(this, fillWidth = 1920, fillHeight = 1080)
+			},
+			logoImageUrl = imageHelper.getLogoImageUrl(this)
+		)
+	}
 }
 
 /**
@@ -169,8 +195,18 @@ class HomeViewModel(
 data class HomeScreenUiState(
 	val isLoading: Boolean = false,
 	val error: String? = null,
-	val featuredItem: BaseItemDto? = null,
-	val resumeItems: List<BaseItemDto> = emptyList(),
-	val latestItems: List<BaseItemDto> = emptyList(),
-	val nextUpItems: List<BaseItemDto> = emptyList(),
+	val featuredItem: HomeItemWithImages? = null,
+	val resumeItems: List<HomeItemWithImages> = emptyList(),
+	val latestItems: List<HomeItemWithImages> = emptyList(),
+	val nextUpItems: List<HomeItemWithImages> = emptyList(),
+)
+
+/**
+ * Wrapper for BaseItemDto with pre-generated image URLs
+ */
+data class HomeItemWithImages(
+	val item: BaseItemDto,
+	val primaryImageUrl: String?,
+	val backdropImageUrl: String?,
+	val logoImageUrl: String?,
 )
