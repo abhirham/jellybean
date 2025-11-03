@@ -127,6 +127,10 @@ dependencies {
 	implementation(libs.bundles.androidx.compose)
 	implementation(libs.accompanist.permissions)
 
+	// Compose for TV
+	implementation(platform(libs.androidx.compose.bom))
+	implementation(libs.bundles.androidx.compose.tv)
+
 	// Dependency Injection
 	implementation(libs.bundles.koin)
 

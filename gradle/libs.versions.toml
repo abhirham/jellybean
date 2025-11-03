@@ -10,6 +10,7 @@ android-targetSdk = "36"
 androidx-activity = "1.11.0"
 androidx-appcompat = "1.7.1"
 androidx-cardview = "1.0.0"
+androidx-compose-bom = "2025.10.01"
 androidx-compose-foundation = "1.9.4"
 androidx-compose-ui = "1.9.4"
 androidx-constraintlayout = "2.2.1"
@@ -18,9 +19,12 @@ androidx-fragment = "1.8.9"
 androidx-leanback = "1.2.0"
 androidx-lifecycle = "2.9.4"
 androidx-media3 = "1.8.0"
+androidx-navigation = "2.9.0"
 androidx-preference = "1.2.1"
 androidx-recyclerview = "1.4.0"
 androidx-startup = "1.2.0"
+androidx-tv-foundation = "1.0.0-alpha12"
+androidx-tv-material = "1.1.0-alpha01"
 androidx-tvprovider = "1.1.0"
 androidx-window = "1.4.0"
 androidx-work = "2.10.5"
@@ -63,7 +67,10 @@ androidx-activity = { module = "androidx.activity:activity", version.ref = "andr
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidx-activity" }
 androidx-appcompat = { module = "androidx.appcompat:appcompat", version.ref = "androidx-appcompat" }
 androidx-cardview = { module = "androidx.cardview:cardview", version.ref = "androidx-cardview" }
+androidx-compose-bom = { module = "androidx.compose:compose-bom", version.ref = "androidx-compose-bom" }
 androidx-compose-foundation = { module = "androidx.compose.foundation:foundation", version.ref = "androidx-compose-foundation" }
+androidx-compose-runtime = { module = "androidx.compose.runtime:runtime" }
+androidx-compose-ui = { module = "androidx.compose.ui:ui" }
 androidx-compose-ui-tooling = { module = "androidx.compose.ui:ui-tooling", version.ref = "androidx-compose-ui" }
 androidx-constraintlayout = { module = "androidx.constraintlayout:constraintlayout", version.ref = "androidx-constraintlayout" }
 androidx-core = { module = "androidx.core:core-ktx", version.ref = "androidx-core" }
@@ -75,9 +82,13 @@ androidx-lifecycle-process = { module = "androidx.lifecycle:lifecycle-process", 
 androidx-lifecycle-runtime = { module = "androidx.lifecycle:lifecycle-runtime", version.ref = "androidx-lifecycle" }
 androidx-lifecycle-service = { module = "androidx.lifecycle:lifecycle-service", version.ref = "androidx-lifecycle" }
 androidx-lifecycle-viewmodel = { module = "androidx.lifecycle:lifecycle-viewmodel", version.ref = "androidx-lifecycle" }
+androidx-lifecycle-viewmodel-compose = { module = "androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "androidx-lifecycle" }
+androidx-navigation-compose = { module = "androidx.navigation:navigation-compose", version.ref = "androidx-navigation" }
 androidx-preference = { module = "androidx.preference:preference-ktx", version.ref = "androidx-preference" }
 androidx-recyclerview = { module = "androidx.recyclerview:recyclerview", version.ref = "androidx-recyclerview" }
 androidx-startup = { module = "androidx.startup:startup-runtime", version.ref = "androidx-startup" }
+androidx-tv-foundation = { module = "androidx.tv:tv-foundation", version.ref = "androidx-tv-foundation" }
+androidx-tv-material = { module = "androidx.tv:tv-material", version.ref = "androidx-tv-material" }
 androidx-tvprovider = { module = "androidx.tvprovider:tvprovider", version.ref = "androidx-tvprovider" }
 androidx-window = { module = "androidx.window:window", version.ref = "androidx-window" }
 androidx-work-runtime = { module = "androidx.work:work-runtime", version.ref = "androidx-work" }
@@ -134,6 +145,14 @@ acra = [
 androidx-compose = [
     "androidx-compose-foundation",
     "androidx-compose-ui-tooling",
+]
+androidx-compose-tv = [
+    "androidx-tv-foundation",
+    "androidx-tv-material",
+    "androidx-compose-runtime",
+    "androidx-compose-ui",
+    "androidx-navigation-compose",
+    "androidx-lifecycle-viewmodel-compose",
 ]
 androidx-lifecycle = [
     "androidx-lifecycle-process",
