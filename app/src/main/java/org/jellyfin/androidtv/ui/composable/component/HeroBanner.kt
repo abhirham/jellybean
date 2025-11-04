@@ -61,7 +61,7 @@ fun HeroBanner(
 	Box(
 		modifier = modifier
 			.fillMaxWidth()
-			.height(720.dp)
+			.height(400.dp)
 	) {
 		// Backdrop Image
 		if (backdropUrl != null) {
@@ -195,7 +195,7 @@ fun HeroBannerWithProgress(
 	Box(
 		modifier = modifier
 			.fillMaxWidth()
-			.height(720.dp)
+			.height(400.dp)
 	) {
 		// Backdrop Image
 		if (backdropUrl != null) {

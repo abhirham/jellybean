@@ -17,10 +17,12 @@ import org.jellyfin.androidtv.auth.repository.SessionRepository
 import org.jellyfin.androidtv.data.repository.NotificationsRepository
 import org.jellyfin.androidtv.ui.composable.screen.HomeScreen
 import org.jellyfin.androidtv.ui.composable.theme.JellyfinTvTheme
+import org.jellyfin.androidtv.ui.composable.screen.HomeViewModel
 import org.jellyfin.androidtv.ui.navigation.Destinations
 import org.jellyfin.androidtv.ui.navigation.NavigationRepository
 import org.jellyfin.sdk.model.api.BaseItemDto
 import org.koin.android.ext.android.inject
+import org.koin.androidx.viewmodel.ext.android.viewModel
 import timber.log.Timber
 
 /**
@@ -32,6 +34,7 @@ class ComposeHomeFragment : Fragment() {
 	private val serverRepository by inject<ServerRepository>()
 	private val notificationRepository by inject<NotificationsRepository>()
 	private val navigationRepository by inject<NavigationRepository>()
+	private val viewModel by viewModel<HomeViewModel>()
 
 	override fun onCreateView(
 		inflater: LayoutInflater,
@@ -79,40 +82,21 @@ class ComposeHomeFragment : Fragment() {
 		Timber.d("Navigation to: $destination")
 
 		when (destination) {
-			"home" -> {
-				// Already on home, do nothing or scroll to top
-			}
-			"movies" -> {
-				// Navigate to movies library
-				// TODO: Get movies library item and navigate
-				Timber.w("Movies navigation not yet implemented")
-			}
-			"shows" -> {
-				// Navigate to TV shows library
-				Timber.w("TV Shows navigation not yet implemented")
-			}
-			"music" -> {
-				// Navigate to music library
-				Timber.w("Music navigation not yet implemented")
-			}
-			"livetv" -> {
-				// Navigate to Live TV
-				navigationRepository.navigate(Destinations.liveTvGuide)
-			}
-			"favorites" -> {
-				// Navigate to favorites
-				Timber.w("Favorites navigation not yet implemented")
-			}
 			"search" -> {
-				// Navigate to search
+				// Navigate to search screen
 				navigationRepository.navigate(Destinations.search())
 			}
-			"settings" -> {
-				// Navigate to settings
-				Timber.w("Settings navigation not yet implemented")
-			}
 			else -> {
-				Timber.w("Unknown navigation destination: $destination")
+				// Try to find the library folder by ID
+				val libraryFolder = viewModel.uiState.value.libraryFolders[destination]
+
+				if (libraryFolder != null) {
+					Timber.d("Navigating to library: ${libraryFolder.name}")
+					// Navigate to library browser with the folder item
+					navigationRepository.navigate(Destinations.libraryBrowser(libraryFolder))
+				} else {
+					Timber.w("Library folder not found for ID: $destination")
+				}
 			}
 		}
 	}

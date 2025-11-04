@@ -2,6 +2,7 @@ package org.jellyfin.androidtv.ui.composable.screen
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
@@ -16,16 +17,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import org.jellyfin.androidtv.ui.composable.component.ContinueWatchingCarousel
+import org.jellyfin.androidtv.ui.composable.component.TvNavigationDrawer
 import org.jellyfin.androidtv.ui.composable.component.ContinueWatchingItem
 import org.jellyfin.androidtv.ui.composable.component.HeroBanner
 import org.jellyfin.androidtv.ui.composable.component.HeroBannerWithProgress
 import org.jellyfin.androidtv.ui.composable.component.LatestMediaCarousel
 import org.jellyfin.androidtv.ui.composable.component.MediaItem
-import org.jellyfin.androidtv.ui.composable.component.NavigationDrawer
 import org.jellyfin.androidtv.ui.composable.component.NavigationItem
 import org.jellyfin.androidtv.ui.composable.component.NextUpCarousel
 import org.jellyfin.androidtv.ui.composable.component.NextUpItem
-import org.jellyfin.androidtv.ui.composable.component.UserProfile
 import org.jellyfin.androidtv.ui.composable.theme.JellyfinTvTheme
 import org.jellyfin.androidtv.ui.composable.theme.LocalTvPadding
 import org.jellyfin.sdk.model.api.BaseItemDto
@@ -43,10 +43,22 @@ fun HomeScreen(
 	onItemClick: (BaseItemDto) -> Unit = {},
 ) {
 	val uiState by viewModel.uiState.collectAsState()
-	var drawerOpen by remember { mutableStateOf(false) }
 
 	JellyfinTvTheme {
-		Box(modifier = Modifier.fillMaxSize()) {
+		Row(modifier = Modifier.fillMaxSize()) {
+			// Persistent Navigation Drawer
+			TvNavigationDrawer(
+				expanded = uiState.drawerExpanded,
+				selectedItem = uiState.selectedNavItem,
+				items = uiState.navigationItems,
+				userProfile = uiState.userProfile,
+				onItemClick = { item ->
+					viewModel.onNavigationItemSelected(item.id)
+					onNavigate(item.id)
+				},
+				onFocusChanged = viewModel::setDrawerExpanded
+			)
+
 			// Main content
 			HomeScreenContent(
 				uiState = uiState,
@@ -63,23 +75,6 @@ fun HomeScreen(
 					onItemClick(homeItem.item)
 				},
 				onRefresh = viewModel::refresh,
-			)
-
-			// Navigation drawer overlay
-			NavigationDrawer(
-				visible = drawerOpen,
-				selectedItem = "home",
-				items = getDefaultNavigationItems(),
-				userProfile = UserProfile(
-					id = "user-1", // TODO: Get from user repository
-					name = "User",
-					avatarUrl = null
-				),
-				onItemClick = { item ->
-					drawerOpen = false
-					onNavigate(item.id)
-				},
-				onDismiss = { drawerOpen = false }
 			)
 		}
 	}
@@ -249,20 +244,6 @@ private fun HomeScreenContent(
 		}
 	}
 }
-
-/**
- * Default navigation items for the drawer
- */
-private fun getDefaultNavigationItems(): List<NavigationItem> = listOf(
-	NavigationItem(id = "home", label = "Home", icon = "🏠"),
-	NavigationItem(id = "movies", label = "Movies", icon = "🎬"),
-	NavigationItem(id = "shows", label = "TV Shows", icon = "📺"),
-	NavigationItem(id = "music", label = "Music", icon = "🎵"),
-	NavigationItem(id = "livetv", label = "Live TV", icon = "📡"),
-	NavigationItem(id = "favorites", label = "Favorites", icon = "⭐"),
-	NavigationItem(id = "search", label = "Search", icon = "🔍"),
-	NavigationItem(id = "settings", label = "Settings", icon = "⚙️"),
-)
 
 /**
  * Build metadata string from components (e.g., "2024 · 2h 15m · Drama, Thriller")

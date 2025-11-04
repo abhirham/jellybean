@@ -11,6 +11,8 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import org.jellyfin.androidtv.data.repository.UserViewsRepository
+import org.jellyfin.androidtv.ui.composable.component.NavigationItem
+import org.jellyfin.androidtv.ui.composable.component.UserProfile
 import org.jellyfin.androidtv.util.ImageHelper
 import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.extensions.itemsApi
@@ -38,6 +40,19 @@ class HomeViewModel(
 
 	init {
 		loadHomeData()
+		loadNavigationItems()
+		loadUserProfile()
+	}
+
+	private fun loadUserProfile() {
+		// TODO: Get actual user info from SessionRepository
+		_uiState.value = _uiState.value.copy(
+			userProfile = UserProfile(
+				id = "current-user",
+				name = "User",
+				avatarUrl = null
+			)
+		)
 	}
 
 	private fun loadHomeData() {
@@ -67,6 +82,70 @@ class HomeViewModel(
 				)
 			}
 		}
+	}
+
+	private fun loadNavigationItems() {
+		viewModelScope.launch {
+			userViewsRepository.views
+				.catch { e ->
+					Timber.e(e, "Error loading navigation items from Jellyfin server")
+				}
+				.collect { views ->
+					Timber.d("Loading ${views.size} folders from Jellyfin server")
+					views.forEach { view ->
+						Timber.d("Found folder: ${view.name} (type: ${view.collectionType?.serialName})")
+					}
+
+					// Build navigation items
+					val navItems = buildNavigationItems(views)
+
+					// Build library folders map
+					val foldersMap = views.associateBy { it.id.toString() }
+
+					_uiState.value = _uiState.value.copy(
+						navigationItems = navItems,
+						libraryFolders = foldersMap
+					)
+					Timber.d("Navigation items updated: ${navItems.size} items (including Search)")
+				}
+		}
+	}
+
+	private fun buildNavigationItems(views: Collection<BaseItemDto>): List<NavigationItem> {
+		val items = mutableListOf<NavigationItem>()
+
+		// Add Search as first item
+		items.add(NavigationItem(
+			id = "search",
+			label = "Search",
+			icon = "search"
+		))
+
+		// Add ALL user views (folders/libraries) from Jellyfin server
+		views.forEach { view ->
+			val collectionTypeStr = view.collectionType?.serialName?.lowercase()
+
+			// Select appropriate icon based on collection type
+			val icon = when (collectionTypeStr) {
+				"movies" -> "movies"
+				"tvshows" -> "tvshows"
+				"music" -> "music"
+				"livetv" -> "tvshows"
+				"books" -> "folder"
+				"photos" -> "folder"
+				else -> "folder" // Default icon for custom libraries like "anime", "magic", etc.
+			}
+
+			items.add(NavigationItem(
+				id = view.id.toString(),
+				label = view.name ?: "Library",
+				icon = icon
+			))
+
+			Timber.d("Added navigation item: ${view.name} with icon: $icon")
+		}
+
+		return items
 	}
 
 	private suspend fun loadFeaturedContent() {
@@ -173,6 +252,15 @@ class HomeViewModel(
 		Timber.d("Item clicked: ${item.name}")
 	}
 
+	fun onNavigationItemSelected(itemId: String) {
+		_uiState.value = _uiState.value.copy(selectedNavItem = itemId)
+		Timber.d("Navigation item selected: $itemId")
+	}
+
+	fun setDrawerExpanded(expanded: Boolean) {
+		_uiState.value = _uiState.value.copy(drawerExpanded = expanded)
+	}
+
 	/**
 	 * Convert BaseItemDto to HomeItemWithImages with pre-generated image URLs
 	 */
@@ -199,6 +287,11 @@ data class HomeScreenUiState(
 	val resumeItems: List<HomeItemWithImages> = emptyList(),
 	val latestItems: List<HomeItemWithImages> = emptyList(),
 	val nextUpItems: List<HomeItemWithImages> = emptyList(),
+	val navigationItems: List<NavigationItem> = emptyList(),
+	val selectedNavItem: String = "search",
+	val drawerExpanded: Boolean = false,
+	val userProfile: UserProfile? = null,
+	val libraryFolders: Map<String, BaseItemDto> = emptyMap(), // Map of folder ID to BaseItemDto
 )
 
 /**
